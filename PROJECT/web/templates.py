@@ -1,0 +1,70 @@
+RECOMMEND_HTML = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Personalized Learning Platform</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        .section { margin-bottom: 20px; }
+        .recommendation { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Personalized Learning Platform</h1>
+        <div class="section">
+            <form action="/recommend/view" method="post">
+                <label>Learner ID:</label>
+                <input type="number" name="learner_id" required>
+                <input type="submit" value="Get Recommendations">
+            </form>
+        </div>
+        {% if learner %}
+        <div class="section">
+            <h2>Learner Profile (ID: {{ anon_id }})</h2>
+            <p>Name: {{ learner.name }}</p>
+            <p>Age: {{ learner.age }}</p>
+            <p>Goals: {{ learner.goals }}</p>
+            <p>Preferences: {{ learner.preferences }}</p>
+        </div>
+        <div class="section">
+            <h2>Context</h2>
+            <p>Time: {{ context.time }}</p>
+            <p>Device: {{ context.device }}</p>
+        </div>
+        <div class="section">
+            <h2>Recommendations</h2>
+            {% for rec in recommendations %}
+            <div class="recommendation">
+                <p><strong>{{ rec[0] }}</strong> (Score: {{ "%.2f" % rec[1] }})</p>
+                <p>{{ rec[2] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="section">
+            <h2>Evaluation</h2>
+            <p>Precision: {{ "%.2f" % evaluation.precision }}</p>
+            <p>Recall: {{ "%.2f" % evaluation.recall }}</p>
+            <p>Engagement: {{ evaluation.engagement }} minutes</p>
+            <p>A/B Test: Hybrid Precision: {{ "%.2f" % evaluation.ab_test.hybrid_precision }} vs Content Precision: {{ "%.2f" % evaluation.ab_test.content_precision }}</p>
+        </div>
+        {% endif %}
+        <div class="section">
+            <form action="/feedback" method="post">
+                <h2>Submit Feedback</h2>
+                <label>Learner ID:</label>
+                <input type="number" name="learner_id" required><br>
+                <label>Course ID:</label>
+                <input type="number" name="course_id" required><br>
+                <label>Rating (1-5):</label>
+                <input type="number" name="rating" min="1" max="5" required><br>
+                <label>Comment:</label>
+                <input type="text" name="comment"><br>
+                <input type="submit" value="Submit Feedback">
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+'''
