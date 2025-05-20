@@ -1,0 +1,48 @@
+@prefix edu: <http://example.org/edu#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Topics
+edu:DataScience a edu:Topic .
+edu:MachineLearning a edu:Topic ;
+    edu:subTopicOf edu:DataScience .
+edu:DataVisualization a edu:Topic ;
+    edu:subTopicOf edu:DataScience .
+edu:DeepLearning a edu:Topic ;
+    edu:subTopicOf edu:MachineLearning .
+
+# Skills
+edu:Python a edu:Skill ;
+    edu:isPrerequisiteFor edu:MachineLearning .
+edu:Statistics a edu:Skill ;
+    edu:isPrerequisiteFor edu:MachineLearning, edu:DataVisualization .
+edu:Tableau a edu:Skill ;
+    edu:enhances edu:DataVisualization .
+
+# Courses and their relationships
+
+# Introduction to Python
+edu:IntroductionToPython a edu:Course ;
+    edu:hasTopic edu:DataScience ;
+    edu:requires edu:Python .
+
+# Data Visualization with Tableau
+edu:DataVisualizationWithTableau a edu:Course ;
+    edu:hasTopic edu:DataVisualization ;
+    edu:requires edu:Statistics ;
+    edu:enhances edu:Tableau .
+
+# Advanced Python
+edu:AdvancedPython a edu:Course ;
+    edu:hasTopic edu:DataScience ;
+    edu:requires edu:Python .
+
+# Machine Learning Basics
+edu:MachineLearningBasics a edu:Course ;
+    edu:hasTopic edu:MachineLearning ;
+    edu:requires edu:Python ;
+    edu:requires edu:Statistics .
+
+# Prerequisites between courses
+edu:DataVisualizationWithTableau edu:hasPrerequisite edu:IntroductionToPython .
+edu:AdvancedPython edu:hasPrerequisite edu:IntroductionToPython .
+edu:MachineLearningBasics edu:hasPrerequisite edu:AdvancedPython .

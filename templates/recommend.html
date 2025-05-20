@@ -2,18 +2,222 @@
 <html>
 <head>
     <title>Personalized Learning Platform</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 800px; margin: auto; }
-        .section { margin-bottom: 20px; }
-        .recommendation { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+   <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6fb;
+            margin: 0;
+            padding: 0;
+            color: #2d3a4b;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 40px;
+        }
+        h1, h2 {
+            text-align: center;
+            margin-bottom: 24px;
+            font-weight: 700;
+            color: #1a2233;
+        }
+        h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            color: #1a2233;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+
+        /* Profile, Context, Evaluation Boxes */
+        .profile, .context, .evaluation {
+            background: #f9fafc;
+            border-radius: 10px;
+            padding: 20px 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        /* Recommendations Grid */
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 28px;
+        }
+        .recommendation {
+            background: #fff;
+            border-radius: 12px;
+            padding: 0;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #eaeef5;
+        }
+        .recommendation:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+        }
+        .recommendation-header {
+            background: linear-gradient(135deg, #4e8cff, #3a7ffd);
+            color: white;
+            padding: 16px 25px;
+            position: relative;
+        }
+        .recommendation-header h3 {
+            margin: 0;
+            color: white;
+            font-size: 1.25rem;
+        }
+        .recommendation-header small {
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+        .recommendation-body {
+            padding: 20px 25px;
+        }
+        .recommendation p {
+            margin: 10px 0;
+        }
+        .recommendation strong {
+            color: #1a2233;
+            font-weight: 600;
+        }
+        .recommendation a {
+            color: #4e8cff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .recommendation a:hover {
+            text-decoration: underline;
+        }
+        .course-description {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .recommendation-footer {
+            padding: 15px 25px;
+            background: #f9fafc;
+            border-top: 1px solid #eaeef5;
+            margin-top: auto;
+        }
+        .course-rating {
+            display: inline-block;
+            background: #4e8cff;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .skills-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 12px 0;
+        }
+        .skill-tag {
+            background: rgba(78, 140, 255, 0.1);
+            color: #4e8cff;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .why-take {
+            background: #f0f7ff;
+            border-left: 4px solid #4e8cff;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        /* Evaluation Section */
+        .evaluation-section {
+            margin-top: 16px;
+            padding: 16px;
+            background: #f9fbff;
+            border-radius: 8px;
+            border-top: 1px solid #eaeef5;
+        }
+        .evaluation-title {
+            font-weight: 600;
+            color: #1a2233;
+            margin-bottom: 8px;
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #e0e6f0;
+            border-radius: 10px;
+            margin: 8px 0;
+        }
+        .progress-bar {
+            height: 10px;
+            border-radius: 10px;
+            background: linear-gradient(to right, #4e8cff, #3a7ffd);
+        }
+
+        /* Form Styles */
+        form label {
+            display: block;
+            font-weight: 600;
+            margin-top: 16px;
+            margin-bottom: 6px;
+            color: #3a445a;
+        }
+        form input[type="number"],
+        form input[type="text"],
+        form input[type="submit"],
+        form textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #d1d9e6;
+            box-sizing: border-box;
+            font-size: 1em;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        form textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        form input[type="number"]:focus,
+        form input[type="text"]:focus,
+        form textarea:focus {
+            border-color: #4e8cff;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(78, 140, 255, 0.1);
+        }
+        form input[type="submit"] {
+            background-color: #4e8cff;
+            border: none;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 24px;
+            padding: 14px 20px;
+            transition: background-color 0.2s ease;
+        }
+        form input[type="submit"]:hover {
+            background-color: #357ae8;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Personalized Learning Platform</h1>
         <div class="section">
-            <form action="/recommend/view" method="post">
+            <form action="/user/recommendations" method="post">
                 <label>Learner ID:</label>
                 <input type="number" name="learner_id" required>
                 <input type="submit" value="Get Recommendations">
@@ -22,44 +226,90 @@
         {% if learner %}
         <div class="section">
             <h2>Learner Profile (ID: {{ anon_id }})</h2>
-            <p>Name: {{ learner.name }}</p>
-            <p>Age: {{ learner.age }}</p>
-            <p>Goals: {{ learner.goals }}</p>
-            <p>Preferences: {{ learner.preferences }}</p>
+            <div class="profile">
+                <p><strong>Name:</strong> {{ learner.name }}</p>
+                <p><strong>Age:</strong> {{ learner.age }}</p>
+                <p><strong>Goals:</strong> {{ learner.goals }}</p>
+                <p><strong>Preferences:</strong> {{ learner.preferences }}</p>
+            </div>
         </div>
         <div class="section">
             <h2>Context</h2>
-            <p>Time: {{ context.time }}</p>
-            <p>Device: {{ context.device }}</p>
-        </div>
-        <div class="section">
-            <h2>Recommendations</h2>
-            {% for rec in recommendations %}
-            <div class="recommendation">
-                <p><strong>{{ rec[0] }}</strong> (Score: {{ "%.2f" % rec[1] }})</p>
-                <p>{{ rec[2] }}</p>
+            <div class="context">
+                <p><strong>Time:</strong> {{ context.time }}</p>
+                <p><strong>Device:</strong> {{ context.device }}</p>
             </div>
-            {% endfor %}
         </div>
-        <div class="section">
-            <h2>Evaluation</h2>
-            <p>Precision: {{ "%.2f" % evaluation.precision }}</p>
-            <p>Recall: {{ "%.2f" % evaluation.recall }}</p>
-            <p>Engagement: {{ evaluation.engagement }} minutes</p>
-            <p>A/B Test: Hybrid Precision: {{ "%.2f" % evaluation.ab_test.hybrid_precision }} vs Content Precision: {{ "%.2f" % evaluation.ab_test.content_precision }}</p>
+       <div class="section">
+            <h2>Recommendations</h2>
+            <div class="recommendations-grid">
+                {% for rec in recommendations %}
+                <div class="recommendation">
+                    <div class="recommendation-header">
+                        <h3>{{ rec["course_name"] }}</h3>
+                        <small>Offered by: {{ rec["university"] }}</small>
+                    </div>
+                    <div class="recommendation-body">
+                        <p class="course-description"><strong>Description:</strong> {{ rec["course_description"] }}</p>
+                        
+                        <p><strong>Level:</strong> {{ rec["difficulty_level"] }} <span class="course-rating">★ {{ rec["course_rating"] }}</span></p>
+                        
+                        <div class="skills-tags">
+                            {% for skill in rec["skills"].split(", ") %}
+                                <span class="skill-tag">{{ skill }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="why-take">
+                            <strong>✅ Why take it:</strong> {{ rec["explanation"] }}
+                        </div>
+                        
+                        <p><a href="{{ rec['course_url'] }}" target="_blank">View Course Details →</a></p>
+                        
+                    </div>
+                    
+                </div>
+                {% endfor %}
+            </div>
         </div>
+        
+        <!-- Evaluation Section -->
+        <div class="evaluation-section">
+            <div class="evaluation-title">Course Evaluation</div>
+            <p><strong>Precision:</strong></p>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {{ evaluation.precision }}"></div>
+            </div>
+            <p><strong>Recall:</strong></p>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {{ evaluation.recall}}"></div>
+            </div>
+            <p><strong>Diversity:</strong></p>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {{evaluation.diversity}}"></div>
+            </div>
+            <p><strong>Novelty:</strong></p>
+            <div class="progress-container">
+                <div class="progress-bar" style="width: {{evaluation.novelty}}"></div>
+            </div>
+        </div>
+       
         {% endif %}
         <div class="section">
             <form action="/feedback" method="post">
                 <h2>Submit Feedback</h2>
                 <label>Learner ID:</label>
-                <input type="number" name="learner_id" required><br>
+                <input type="number" name="learner_id" required>
+                
                 <label>Course ID:</label>
-                <input type="number" name="course_id" required><br>
+                <input type="number" name="course_id" required>
+                
                 <label>Rating (1-5):</label>
-                <input type="number" name="rating" min="1" max="5" required><br>
+                <input type="number" name="rating" min="1" max="5" required>
+                
                 <label>Comment:</label>
-                <input type="text" name="comment"><br>
+                <textarea name="comment" placeholder="Share your thoughts about this course..."></textarea>
+                
                 <input type="submit" value="Submit Feedback">
             </form>
         </div>

@@ -1,3 +1,4 @@
+from services.prerequisite_service import get_prerequisite_id
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import numpy as np
@@ -6,6 +7,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 import sqlite3
 from collections import defaultdict
 import json
+from models.database import populate_sample_data, init_db
+
+from services.evaluation import UnifiedEvaluator
+from services.user_service import get_context, get_learner_profile
 
 app = Flask(__name__)
 
@@ -29,25 +34,27 @@ def load_data():
 courses_df = load_data()
 
 # Initialize SQLite database
-def init_db():
-    conn = sqlite3.connect('learning.db')
-    c = conn.cursor()
+# def init_db():
+#     conn = sqlite3.connect('learning.db')
+#     c = conn.cursor()
     
-    c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (id INTEGER PRIMARY KEY, 
-                  username TEXT, 
-                  preferences TEXT)''')
+#     c.execute('''CREATE TABLE IF NOT EXISTS users
+#                  (id INTEGER PRIMARY KEY, 
+#                   name TEXT, 
+#                   age INTEGER, 
+#                   goals TEXT, 
+#                   preferences TEXT)''')
     
-    c.execute('''CREATE TABLE IF NOT EXISTS interactions
-                 (user_id INTEGER,
-                  course_id TEXT,
-                  rating REAL,
-                  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+#     c.execute('''CREATE TABLE IF NOT EXISTS interactions
+#                  (user_id INTEGER,
+#                   course_id TEXT,
+#                   rating REAL,
+#                   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
     
-    conn.commit()
-    conn.close()
+#     conn.commit()
+#     conn.close()
 
-init_db()
+# init_db()
 
 class SimpleRecommender:
     def __init__(self, courses_df):
@@ -78,7 +85,8 @@ class SimpleRecommender:
         return self.courses.iloc[related_indices]
     
     def collaborative_recommendations(self, user_id, n=5):
-        if user_id not in self.user_interactions or len(self.user_interactions) < 2:
+        if user_id not in self.user_interactions or len(self.user_interactions[user_id]) == 0:
+        # if user_id not in self.user_interactions or len(self.user_interactions) < 2:
             return pd.DataFrame()
             
         # Simple user-user collaborative filtering
@@ -149,7 +157,8 @@ class SimpleRecommender:
         
         # Calculate diversity (content dissimilarity between recommendations)
         if len(recommended) > 1:
-            rec_indices = recommended_courses.head(k).index.tolist()
+            rec_indices = self.courses[self.courses['id'].isin(recommended)].index.tolist()
+            # rec_indices = recommended_courses.head(k).index.tolist()
             submatrix = self.tfidf_matrix[rec_indices]
             pairwise_sim = cosine_similarity(submatrix)
             diversity = 1 - pairwise_sim[np.triu_indices(len(pairwise_sim), k=1)].mean()
@@ -161,7 +170,11 @@ class SimpleRecommender:
         for cid in recommended:
             num_users_rated = sum(1 for u in self.user_interactions.values() if cid in u)
             popularity.append(num_users_rated)
-        novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k)) if self.user_interactions else 0
+        # novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k)) if self.user_interactions else 0
+        if self.user_interactions and k > 0:
+            novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k))
+        else:
+            novelty = 0
         
         # Update coverage
         self.evaluation_metrics['coverage'].update(recommended)
@@ -200,6 +213,93 @@ class SimpleRecommender:
                 
         return aggregated
 
+    def _generate_explanation(self, course_idx, course_id, query, 
+                            content_weight, collab_weight, 
+                            completed_courses, cb_indices, cf_indices):
+        """Generate personalized explanation for a recommendation"""
+        # Check prerequisites
+        prerequisites = get_prerequisite_id(course_id)
+        prerequisites_met = all(p in completed_courses for p in prerequisites)
+        
+        # Determine recommendation source
+        from_cb = course_idx in cb_indices
+        from_cf = course_id in cf_indices
+        
+        # Build explanation components
+        explanation_parts = []
+        
+        if prerequisites_met and prerequisites:
+            explanation_parts.append(
+                f"Recommended based on your goal '{query}' and completed prerequisites"
+            )
+            
+        if from_cb and from_cf:
+            explanation_parts.append(
+                "recommended through both content analysis and peer preferences"
+            )
+        elif from_cb:
+            explanation_parts.append(
+                "recommended based on course content matching your goals" 
+                if content_weight > collab_weight else
+                "recommended through content analysis with collaborative insights"
+            )
+        elif from_cf:
+            explanation_parts.append(
+                "recommended by learners with similar interests"
+                if collab_weight > content_weight else
+                "recommended through peer preferences with content consideration"
+            )
+            
+        if not explanation_parts:
+            explanation_parts.append("recommended as a popular choice among learners")
+            
+        # Add knowledge graph reference if available
+        # if prerequisites:
+        #     top_prerequisites = ', '.join(prerequisites[:3])
+        #     explanation_parts.append(
+        #         f"related to: {top_prerequisites} knowledge domains"
+        #     )
+            
+        # Capitalize first letter and add period
+        explanation = ', '.join(explanation_parts) + '.'
+        return explanation[0].upper() + explanation[1:]
+    
+    
+    def hybrid_recom(self, user_id, query=None, n=5):
+        # Get profile maturity for weighting
+        profile_maturity = len(self.user_interactions.get(user_id, {}))
+        collab_weight = 0.7 if profile_maturity > 2 else 0.2
+        content_weight = 0.3 if profile_maturity > 2 else 0.8
+        
+        # Get base recommendations
+        cb_recs = self.content_based_recommendations(query, n) if query else pd.DataFrame()
+        cf_recs = self.collaborative_recommendations(user_id, n)
+        
+        # Get indices for explanation generation
+        cb_indices = set(cb_recs.index.tolist()) if not cb_recs.empty else set()
+        cf_course_ids = set(cf_recs['id'].tolist()) if not cf_recs.empty else set()
+        
+        # Combine recommendations
+        combined = pd.concat([cb_recs, cf_recs]).drop_duplicates().head(n)
+        
+        # Get completed courses for prerequisite check
+        completed_courses = set(self.user_interactions.get(user_id, {}).keys())
+        
+        # Generate explanations for each course
+        explanations = []
+        for idx, course in combined.iterrows():
+            explanation = self._generate_explanation(
+                idx, course['id'], query or "learning goals",
+                content_weight, collab_weight, completed_courses,
+                cb_indices, cf_course_ids
+            )
+            explanations.append(explanation)
+            
+        combined = combined.copy()
+        combined['explanation'] = explanations
+        
+        return combined
+    
 recommender = SimpleRecommender(courses_df)
 recommender.load_interactions()
 
@@ -228,8 +328,11 @@ def recommend():
     
     if evaluation:
         response['evaluation'] = evaluation
+
+    print(response)
     
     return jsonify(response)
+
 
 @app.route('/rate', methods=['POST'])
 def rate_course():
@@ -258,42 +361,44 @@ def get_metrics():
         return jsonify({'message': 'No evaluation data available yet'}), 404
 
 
-# Add this new route to your existing app.py
 @app.route('/user/recommendations', methods=['GET', 'POST'])
 def user_recommendations():
     if request.method == 'POST':
         # Handle form submission
         learner_id = int(request.form.get('learner_id', 0))
-        query = request.form.get('query', '')
-        
+        print(learner_id)
+
         if not learner_id:
-            return render_template('index.html', 
+            return render_template('user_recommend.html', 
                                courses=courses_df.sample(6).to_dict('records'),
                                error="Please enter a valid Learner ID")
+
+        # Get learner profile & context
+        try:
+            profile = get_learner_profile(learner_id)
+            context = get_context(learner_id)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
         
+        print(profile, context)
+
         # Get recommendations
-        recommendations = recommender.hybrid_recommendations(learner_id, query)
-        
-        # Create a mock user profile (you can replace this with your actual user service)
-        profile = {
-            'name': f"Learner {learner_id}",
-            'age': 25,  # Default age
-            'goals': query if query else "General Learning",
-            'preferences': "Video",  # Default preference
-            'study_hours': 5,  # Default study hours
-            'interactions': []  # Placeholder for actual interactions
-        }
-        
-        # Create mock context (replace with your actual context service)
-        context = {
-            'time': "Daytime",  # Default time
-            'device': "Desktop"  # Default device
-        }
-        
+        #query = request.form.get('query', '')
+        query = profile.goals
+        print(query)
+               
+        # Get recommendations
+        recommendations = recommender.hybrid_recom(learner_id, query)
+        print(recommendations)
         # Evaluate recommendations
         evaluation = recommender.evaluate_recommendations(learner_id, recommendations)
+        # user_interactions = recommender.user_interactions
+        # tfidf_matrix = recommender.tfidf_matrix
+        # evaluator = UnifiedEvaluator(user_interactions, courses_df, tfidf_matrix)
+        # evaluation = evaluator.evaluate_user_performance(user_id=learner_id)
+        print(evaluation)
         
-        return render_template('user_recommend.html',
+        return render_template('recommend.html',
                            learner=profile,
                            context=context,
                            recommendations=recommendations.to_dict('records'),
@@ -310,5 +415,12 @@ def user_recommendations():
                        recommendations=None,
                        evaluation=None)
 
+
 if __name__ == '__main__':
+    # Create the database and tables
+    init_db()
+        
+    # Add sample data
+    populate_sample_data()
+
     app.run(debug=True)
