@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 
 def init_routes(app):
-    courses_df = pd.read_csv('data/coursera.csv')
+    courses_df = pd.read_csv('coursera.csv')
     courses_df.columns = courses_df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('[^a-zA-Z0-9_]', '')
     courses_df['content'] = courses_df['course_name'] + ' ' + courses_df['course_description'] + ' ' + courses_df['skills']
     courses_df['content'] = courses_df['content'].fillna('')

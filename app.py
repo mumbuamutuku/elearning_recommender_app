@@ -17,7 +17,7 @@ app = Flask(__name__)
 
 # Load and preprocess data
 def load_data():
-    courses = pd.read_csv('data/coursera.csv')
+    courses = pd.read_csv('coursera.csv')
     
     # Clean column names (remove special characters)
     courses.columns = courses.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('[^a-zA-Z0-9_]', '')

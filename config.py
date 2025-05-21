@@ -2,7 +2,7 @@
 Configuration settings for the learning platform
 """
 # Database settings
-COURSE_DATA = './data/coursera.csv'
+COURSE_DATA = 'coursera.csv'
 
 # Recommendation settings
 COLLAB_WEIGHT = 0.7
