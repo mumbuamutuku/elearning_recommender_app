@@ -502,11 +502,12 @@ def rate_courses():
     return jsonify({'status': 'success', 'message': 'Thank you for your feedback!'})
 
 
-if __name__ == '__main__':
-    # Create the database and tables
-    init_db()
+# if __name__ == '__main__':
+#     # Create the database and tables
+#     init_db()
         
-    # Add sample data
-    populate_sample_data()
+#     # Add sample data
+#     populate_sample_data()
 
-    app.run(debug=True)
+#     # app.run(debug=True)
+#     app.run()
