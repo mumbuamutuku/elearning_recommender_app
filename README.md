@@ -26,17 +26,19 @@ A hybrid recommendation system for online courses that combines content-based an
 1. Clone the repository:
 ```bash
    git clone https://github.com/yourusername/learning-recommender.git
-   cd learning-recommender
+   cd learning-recommende
+```
 
 2. Create and activate a virtual environment:
 ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+```
 
 3. Install dependencies:
 ```bash
     pip install -r requirements.txt
-
+```
 ## Data Preparation
 Place your course data in CSV format in the data/ directory. The system expects columns including:
 
@@ -49,9 +51,9 @@ Place your course data in CSV format in the data/ directory. The system expects 
 ## Usage
 1. Run the application:
 ```bash
-python app.py
-Access the web interface at http://localhost:5000
-
+    python app.py
+    Access the web interface at http://localhost:5000
+```
 2. API Endpoints
 - GET / - Homepage with sample courses
 
