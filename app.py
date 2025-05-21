@@ -143,24 +143,24 @@ class SimpleRecommender:
         Evaluate recommendations against user's actual interactions
         """
         if user_id not in self.user_interactions:
-            print(f"Debug: User {user_id} has no interactions")
+            # print(f"Debug: User {user_id} has no interactions")
             return None
             
         # Get user's positively rated courses (rating >= 3)
         user_positive = {cid for cid, rating in self.user_interactions[user_id].items() if rating >= 3}
         if not user_positive:
-            print(f"Debug: User {user_id} has no positive ratings (>=3)")
+            # print(f"Debug: User {user_id} has no positive ratings (>=3)")
             return None
             
         # Get top k recommended course IDs
         # recommended = set(recommended_courses['id'].head(k).tolist())
         recommended = set(str(cid) for cid in recommended_courses['id'].head(k).tolist())
-        print(f"Debug: Recommended IDs: {recommended}")
-        print(f"Debug: User positive IDs: {user_positive}")
+        # print(f"Debug: Recommended IDs: {recommended}")
+        # print(f"Debug: User positive IDs: {user_positive}")
 
         # Calculate precision and recall
         relevant_and_recommended = recommended & user_positive
-        print(f"Debug: Relevant and recommended: {relevant_and_recommended}")
+        # print(f"Debug: Relevant and recommended: {relevant_and_recommended}")
         precision = len(relevant_and_recommended) / len(recommended) if recommended else 0
         recall = len(relevant_and_recommended) / len(user_positive)
         
@@ -383,7 +383,7 @@ def recommend():
     if evaluation:
         response['evaluation'] = evaluation
 
-    print(response)
+    # print(response)
     
     return jsonify(response)
 
@@ -421,7 +421,7 @@ def user_recommendations():
     if request.method == 'POST':
         # Handle form submission
         learner_id = int(request.form.get('learner_id', 0))
-        print(learner_id)
+        # print(learner_id)
 
         if not learner_id:
             return render_template('recommend.html', 
@@ -434,24 +434,20 @@ def user_recommendations():
             context = get_context(learner_id)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-        print("I debug")
-        print(profile, context)
 
         # Get recommendations
         #query = request.form.get('query', '')
         query = profile['goals']
-        print(query)
                
         # Get recommendations
         recommendations = recommender.hybrid_recom(learner_id, query)
-        print(recommendations)
+
         # Evaluate recommendations
         evaluation = recommender.evaluate_recommendations(learner_id, recommendations)
         # user_interactions = recommender.user_interactions
         # tfidf_matrix = recommender.tfidf_matrix
         # evaluator = UnifiedEvaluator(user_interactions, courses_df, tfidf_matrix)
         # evaluation = evaluator.evaluate_user_performance(user_id=learner_id)
-        print(evaluation)
         
         return render_template('recommend.html',
                            learner=profile,
