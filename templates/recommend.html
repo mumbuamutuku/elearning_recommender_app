@@ -212,6 +212,34 @@
             background-color: #357ae8;
         }
     </style>
+    <script>
+        // Handle feedback form submission with AJAX
+        document.addEventListener('DOMContentLoaded', function() {
+            const feedbackForm = document.querySelector('form[action="/feedback"]');
+            if (feedbackForm) {
+                feedbackForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const formData = new FormData(feedbackForm);
+                    fetch('/feedback', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert(data.message || 'Thank you for your feedback!');
+                            window.location.href = '/';
+                        } else {
+                            alert('Error: ' + (data.error || 'Failed to submit feedback'));
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error: ' + error.message);
+                    });
+                });
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -274,23 +302,30 @@
         </div>
         
         <!-- Evaluation Section -->
-        <div class="evaluation-section">
-            <div class="evaluation-title">Course Evaluation</div>
-            <p><strong>Precision:</strong></p>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {{ evaluation.precision }}"></div>
-            </div>
-            <p><strong>Recall:</strong></p>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {{ evaluation.recall}}"></div>
-            </div>
-            <p><strong>Diversity:</strong></p>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {{evaluation.diversity}}"></div>
-            </div>
-            <p><strong>Novelty:</strong></p>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: {{evaluation.novelty}}"></div>
+        <div class="section">
+            <h2>Evaluation</h2>
+            <div class="evaluation-section">
+                <div class="evaluation-title">Recommendation Performance</div>
+                {% if evaluation %}
+                <p><strong>Precision:</strong> {{ "%.1f" % evaluation.precision }}%</p>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ evaluation.precision }}%"></div>
+                </div>
+                <p><strong>Recall:</strong> {{ "%.1f" % evaluation.recall }}%</p>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ evaluation.recall }}%"></div>
+                </div>
+                <p><strong>Diversity:</strong> {{ "%.1f" % evaluation.diversity }}%</p>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ evaluation.diversity }}%"></div>
+                </div>
+                <p><strong>Novelty:</strong> {{ "%.1f" % evaluation.novelty }}%</p>
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ evaluation.novelty }}%"></div>
+                </div>
+                {% else %}
+                    <p>No evaluation data available.</p>
+                {% endif %}
             </div>
         </div>
        

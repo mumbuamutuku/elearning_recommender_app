@@ -1,3 +1,4 @@
+from datetime import datetime
 from services.prerequisite_service import get_prerequisite_id
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
@@ -59,6 +60,8 @@ courses_df = load_data()
 class SimpleRecommender:
     def __init__(self, courses_df):
         self.courses = courses_df
+        self.courses['id'] = self.courses['id'].astype(str)
+        # self.courses['course_rating'] = self.courses.get('course_rating', 0).astype(float)
         self.user_interactions = defaultdict(dict)
         self.tfidf_vectorizer = TfidfVectorizer(stop_words='english')
         self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(self.courses['content'])
@@ -140,18 +143,24 @@ class SimpleRecommender:
         Evaluate recommendations against user's actual interactions
         """
         if user_id not in self.user_interactions:
+            print(f"Debug: User {user_id} has no interactions")
             return None
             
         # Get user's positively rated courses (rating >= 3)
         user_positive = {cid for cid, rating in self.user_interactions[user_id].items() if rating >= 3}
         if not user_positive:
+            print(f"Debug: User {user_id} has no positive ratings (>=3)")
             return None
             
         # Get top k recommended course IDs
-        recommended = set(recommended_courses['id'].head(k).tolist())
-        
+        # recommended = set(recommended_courses['id'].head(k).tolist())
+        recommended = set(str(cid) for cid in recommended_courses['id'].head(k).tolist())
+        print(f"Debug: Recommended IDs: {recommended}")
+        print(f"Debug: User positive IDs: {user_positive}")
+
         # Calculate precision and recall
         relevant_and_recommended = recommended & user_positive
+        print(f"Debug: Relevant and recommended: {relevant_and_recommended}")
         precision = len(relevant_and_recommended) / len(recommended) if recommended else 0
         recall = len(relevant_and_recommended) / len(user_positive)
         
@@ -159,9 +168,15 @@ class SimpleRecommender:
         if len(recommended) > 1:
             rec_indices = self.courses[self.courses['id'].isin(recommended)].index.tolist()
             # rec_indices = recommended_courses.head(k).index.tolist()
-            submatrix = self.tfidf_matrix[rec_indices]
-            pairwise_sim = cosine_similarity(submatrix)
-            diversity = 1 - pairwise_sim[np.triu_indices(len(pairwise_sim), k=1)].mean()
+            # submatrix = self.tfidf_matrix[rec_indices]
+            # pairwise_sim = cosine_similarity(submatrix)
+            # diversity = 1 - pairwise_sim[np.triu_indices(len(pairwise_sim), k=1)].mean()
+            if len(rec_indices) > 1:
+                submatrix = self.tfidf_matrix[rec_indices]
+                pairwise_sim = cosine_similarity(submatrix)
+                diversity = 1 - pairwise_sim[np.triu_indices(len(pairwise_sim), k=1)].mean()
+            else:
+                diversity = 0
         else:
             diversity = 0
             
@@ -171,10 +186,8 @@ class SimpleRecommender:
             num_users_rated = sum(1 for u in self.user_interactions.values() if cid in u)
             popularity.append(num_users_rated)
         # novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k)) if self.user_interactions else 0
-        if self.user_interactions and k > 0:
-            novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k))
-        else:
-            novelty = 0
+        total_users = max(1, len(self.user_interactions))
+        novelty = 1 - (sum(popularity) / (total_users * k)) if k > 0 else 0
         
         # Update coverage
         self.evaluation_metrics['coverage'].update(recommended)
@@ -184,7 +197,7 @@ class SimpleRecommender:
             'precision': precision,
             'recall': recall,
             'diversity': diversity,
-            'novelty': novelty
+            'novelty': max(novelty, 0.1),
         }
         
         for metric, value in metrics.items():
@@ -267,12 +280,13 @@ class SimpleRecommender:
     
     def hybrid_recom(self, user_id, query=None, n=5):
         # Get profile maturity for weighting
+        profile = get_learner_profile(user_id)
         profile_maturity = len(self.user_interactions.get(user_id, {}))
         collab_weight = 0.7 if profile_maturity > 2 else 0.2
         content_weight = 0.3 if profile_maturity > 2 else 0.8
-        
+        context = get_context(user_id)
         # Get base recommendations
-        cb_recs = self.content_based_recommendations(query, n) if query else pd.DataFrame()
+        cb_recs = self.content_based_recommendations(query or profile['goals'], n) if query or profile['goals'] else pd.DataFrame()
         cf_recs = self.collaborative_recommendations(user_id, n)
         
         # Get indices for explanation generation
@@ -280,25 +294,65 @@ class SimpleRecommender:
         cf_course_ids = set(cf_recs['id'].tolist()) if not cf_recs.empty else set()
         
         # Combine recommendations
-        combined = pd.concat([cb_recs, cf_recs]).drop_duplicates().head(n)
+        # combined = pd.concat([cb_recs, cf_recs]).drop_duplicates().head(n)
+        if not cb_recs.empty and not cf_recs.empty:
+            combined = pd.concat([cb_recs, cf_recs]).drop_duplicates().head(n)
+        elif not cb_recs.empty:
+            combined = cb_recs.head(n)
+        elif not cf_recs.empty:
+            combined = cf_recs.head(n)
+        else:
+            combined = self.courses.sample(n)
         
         # Get completed courses for prerequisite check
         completed_courses = set(self.user_interactions.get(user_id, {}).keys())
         
         # Generate explanations for each course
-        explanations = []
+        # explanations = []
+        # for idx, course in combined.iterrows():
+        #     explanation = self._generate_explanation(
+        #         idx, course['id'], query or "learning goals",
+        #         content_weight, collab_weight, completed_courses,
+        #         cb_indices, cf_course_ids
+        #     )
+        #     explanations.append(explanation)
+            
+        # combined = combined.copy()
+        # combined['explanation'] = explanations
+        
+        # return combined
+        recommendations = []
         for idx, course in combined.iterrows():
+            score = (collab_weight * course.get('rating', 0) + content_weight * cosine_similarity(
+                self.tfidf_vectorizer.transform([query or profile['goals']]),
+                self.tfidf_matrix[idx])[0][0]) / (collab_weight + content_weight)
+            context_device = context.device if hasattr(context, 'device') else context.get('device', 'desktop')
+            context_time = context.time if hasattr(context, 'time') else context.get('time', 'day')
+            if context_device == 'mobile' and context_time == 'night' and course.get('format', '') == 'video':
+                score *= 1.2
+            if get_prerequisite_id(course['id']) and all(p in completed_courses for p in get_prerequisite_id(course['id'])):
+                score += 0.2
+            if get_prerequisite_id(course['id']) and all(p in completed_courses for p in get_prerequisite_id(course['id'])):
+                score += 0.2
             explanation = self._generate_explanation(
-                idx, course['id'], query or "learning goals",
+                idx, course['id'], query or profile['goals'],
                 content_weight, collab_weight, completed_courses,
                 cb_indices, cf_course_ids
             )
-            explanations.append(explanation)
-            
-        combined = combined.copy()
-        combined['explanation'] = explanations
-        
-        return combined
+            recommendations.append({
+                'id': course['id'],
+                'course_name': course.get('course_name', course.get('title', 'Unknown')),
+                'university': course.get('university', 'Unknown'),
+                'course_description': course.get('course_description', 'No description available'),
+                'difficulty_level': course.get('difficulty', course.get('difficulty_level', 'Unknown')),
+                'course_rating': course.get('course_rating', 0),
+                'skills': course.get('skills', ''),
+                'course_url': course.get('course_url', '#'),
+                'explanation': explanation,
+                'score': score
+            })
+        result = pd.DataFrame(recommendations)
+        return result.sort_values('score', ascending=False).head(n)
     
 recommender = SimpleRecommender(courses_df)
 recommender.load_interactions()
@@ -340,11 +394,12 @@ def rate_course():
     user_id = data['user_id']
     course_id = data['course_id']
     rating = data['rating']
+    comment = data['comment']
     
     conn = sqlite3.connect('learning.db')
     c = conn.cursor()
     c.execute("INSERT INTO interactions VALUES (?, ?, ?, datetime('now'))", 
-              (user_id, course_id, rating))
+              (user_id, course_id, rating, comment))
     conn.commit()
     conn.close()
     
@@ -369,7 +424,7 @@ def user_recommendations():
         print(learner_id)
 
         if not learner_id:
-            return render_template('user_recommend.html', 
+            return render_template('recommend.html', 
                                courses=courses_df.sample(6).to_dict('records'),
                                error="Please enter a valid Learner ID")
 
@@ -379,12 +434,12 @@ def user_recommendations():
             context = get_context(learner_id)
         except Exception as e:
             return jsonify({'error': str(e)}), 500
-        
+        print("I debug")
         print(profile, context)
 
         # Get recommendations
         #query = request.form.get('query', '')
-        query = profile.goals
+        query = profile['goals']
         print(query)
                
         # Get recommendations
@@ -414,6 +469,37 @@ def user_recommendations():
                        learner=None,
                        recommendations=None,
                        evaluation=None)
+
+@app.route('/feedback', methods=['POST'])
+def rate_courses():
+    # Handle form or JSON data
+    if request.content_type.startswith('application/json'):
+        data = request.get_json() or {}
+    else:
+        data = request.form.to_dict()
+
+    learner_id = int(data.get('learner_id', 0))
+    course_id = int(data.get('course_id', 0))
+    rating = int(data.get('rating', 0))
+    comment = data.get('comment', '')
+
+    if not (learner_id and course_id and 1 <= rating <= 5):
+        return jsonify({'error': 'Invalid input'}), 400
+
+    conn = sqlite3.connect('learning.db')
+    c = conn.cursor()
+    c.execute('INSERT INTO interactions VALUES (?, ?, ?,  ?)',
+                (learner_id, course_id, rating,  datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    c.execute('INSERT INTO feedback VALUES (?, ?, ?, ?)',
+                (learner_id, course_id, rating, comment))
+    c.execute('SELECT AVG(rating) FROM feedback WHERE course_id = ?', (course_id,))
+    avg_rating = c.fetchone()[0] or rating
+    c.execute('UPDATE interactions SET rating = ? WHERE course_id = ?', (avg_rating, course_id))
+    conn.commit()
+    conn.close()
+
+    recommender.user_interactions[learner_id][course_id] = rating
+    return jsonify({'status': 'success', 'message': 'Thank you for your feedback!'})
 
 
 if __name__ == '__main__':

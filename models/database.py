@@ -4,6 +4,10 @@ Database operations and initialization
 
 import sqlite3
 from datetime import datetime
+
+import pandas as pd
+
+from config import COURSE_DATA
 # import config
 
 def get_db_connection():
@@ -26,10 +30,15 @@ def init_db():
         preferences TEXT)''')
         
     c.execute('''CREATE TABLE IF NOT EXISTS courses (
-        id INTEGER PRIMARY KEY, 
-        title TEXT, 
-        keywords TEXT, 
-        format TEXT)''')
+        id TEXT PRIMARY KEY, 
+        course_name TEXT, 
+        course_description TEXT, 
+        skills TEXT, 
+        difficulty TEXT, 
+        format TEXT, 
+        course_rating REAL, 
+        university TEXT, 
+        course_url TEXT)''')
         
     c.execute('''CREATE TABLE IF NOT EXISTS interactions (
         user_id INTEGER, 
@@ -65,19 +74,38 @@ def populate_sample_data():
     c.executemany('INSERT OR REPLACE INTO learners VALUES (?, ?, ?, ?, ?)', learners)
     
     # Sample courses
-    courses = [
-        (1, 'Introduction to Python', 'python, programming', 'video'),
-        (2, 'Data Visualization with Tableau', 'data science, visualization', 'video'),
-        (3, 'Advanced Python', 'python, programming', 'text'),
-        (4, 'Machine Learning Basics', 'machine learning, data science', 'quiz')
-    ]
-    c.executemany('INSERT OR REPLACE INTO courses VALUES (?, ?, ?, ?)', courses)
-    
+    # courses = [
+    #     (1, 'Introduction to Python', 'python, programming', 'video'),
+    #     (2, 'Data Visualization with Tableau', 'data science, visualization', 'video'),
+    #     (3, 'Advanced Python', 'python, programming', 'text'),
+    #     (4, 'Machine Learning Basics', 'machine learning, data science', 'quiz')
+    # ]
+    # c.executemany('INSERT OR REPLACE INTO courses VALUES (?, ?, ?, ?)', courses)
+    try:
+        df = pd.read_csv(COURSE_DATA)
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_').str.replace('[^a-zA-Z0-9_]', '')
+        courses = [(str(i + 1), row['course_name'], row['course_description'], row['skills'],
+                    row.get('difficulty', row.get('difficulty_level', 'Unknown')),
+                    'video' if 'video' in row.get('course_type', '').lower() else 'text',
+                    row.get('course_rating', 0), row.get('university', 'Unknown'),
+                    row.get('course_url', '#'))
+                   for i, row in df.iterrows()]
+    except FileNotFoundError:
+        courses = [
+            ('1', 'Introduction to Python', 'Learn Python programming basics', 'python, programming', 'Beginner', 'video', 4.0, 'University A', '#'),
+            ('2', 'Data Visualization with Tableau', 'Visualize data effectively', 'data science, visualization', 'Intermediate', 'video', 4.5, 'University B', '#'),
+            ('3', 'Advanced Python', 'Advanced Python concepts', 'python, programming', 'Intermediate', 'text', 4.2, 'University C', '#'),
+            ('4', 'Machine Learning Basics', 'Introduction to ML', 'machine learning, data science', 'Intermediate', 'quiz', 4.0, 'University D', '#')
+        ]
     # Sample interactions
     interactions = [
         (1, 1, 4, '2025-05-01 22:00:00'),  # Sarah rated Python course
+        (1, 2, 5, '2025-05-01 22:30:00'),  # Sarah: Tableau
+        (1, 3, 4, '2025-05-01 23:00:00'),
         (2, 3, 5, '2025-05-01 20:00:00'),  # John rated Advanced Python
-        (3, 4, 3, '2025-05-01 21:00:00')   # Emma rated ML Basics
+        (2, 2, 4, '2025-05-01 21:00:00'),  # John: Tableau
+        (2, 4, 4, '2025-05-01 21:30:00'),   # John: ML Basics
+        (3, 4, 3, '2025-05-01 21:00:00'),   # Emma rated ML Basics
     ]
     c.executemany('INSERT OR REPLACE INTO interactions VALUES (?, ?, ?, ?)', interactions)
 

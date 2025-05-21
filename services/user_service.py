@@ -23,11 +23,7 @@ def get_learner_profile(learner_id):
     # Get basic profile data
     c.execute('SELECT * FROM learners WHERE id = ?', (learner_id,))
     profile = c.fetchone()
-    
-    if not profile:
-        conn.close()
-        return None
-    
+        
     # Get learner's interactions
     c.execute('SELECT course_id, rating FROM interactions WHERE user_id = ?', (learner_id,))
     interactions = c.fetchall()
@@ -35,8 +31,18 @@ def get_learner_profile(learner_id):
     conn.close()
     
     # Create and return a Learner object
-    return Learner.from_db_row(profile, interactions)
-
+    # return Learner.from_db_row(profile, interactions)
+    if not profile:
+            raise ValueError(f"Learner {learner_id} not found")
+    print(f"Debug: Profile tuple for learner {learner_id}: {profile}, length: {len(profile)}")
+    return {
+        'id': profile[0],
+        'name': profile[1],
+        'age': profile[2],
+        'goals': profile[3],
+        'preferences': profile[4],
+        'interactions': interactions
+    }
 def get_context(learner_id):
     """
     Determine user context (time of day, device type)
@@ -49,11 +55,11 @@ def get_context(learner_id):
         Context: User context information
     """
     # Simulate context - in a real system, this would be determined from actual user data
-    current_hour = datetime.now().hour
+    current_time = datetime.now().hour
     device = 'mobile' if random.random() > 0.5 else 'desktop'
-    time_of_day = 'night' if current_hour >= 18 else 'day'
-    
-    return Context(time_of_day, device)
+    time_of_day = 'night' if current_time >= 18 else 'day'
+    return {'time': time_of_day, 'device': device} # Context(time=time_of_day, device=device)
+
 
 def has_sufficient_history(learner_id, threshold=3):
     """

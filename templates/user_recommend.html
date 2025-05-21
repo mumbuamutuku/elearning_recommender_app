@@ -40,6 +40,35 @@
             background-color: #45a049;
         }
     </style>
+    
+    <script>
+        // Handle feedback form submission with AJAX
+        document.addEventListener('DOMContentLoaded', function() {
+            const feedbackForm = document.querySelector('form[action="/feedback"]');
+            if (feedbackForm) {
+                feedbackForm.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    const formData = new FormData(feedbackForm);
+                    fetch('/feedback', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert(data.message || 'Thank you for your feedback!');
+                            window.location.href = '/';
+                        } else {
+                            alert('Error: ' + (data.error || 'Failed to submit feedback'));
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error: ' + error.message);
+                    });
+                });
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -52,7 +81,7 @@
             </form>
         </div>
         <div class="card">
-            <form action="/rate" method="post">
+            <form action="/feedback" method="post">
                 <h2>Submit Feedback</h2>
                 <label>Learner ID:</label>
                 <input type="number" name="learner_id" required><br>
