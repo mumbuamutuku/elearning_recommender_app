@@ -35,29 +35,6 @@ def load_data():
 
 courses_df = load_data()
 
-# Initialize SQLite database
-# def init_db():
-#     conn = sqlite3.connect('learning.db')
-#     c = conn.cursor()
-    
-#     c.execute('''CREATE TABLE IF NOT EXISTS users
-#                  (id INTEGER PRIMARY KEY, 
-#                   name TEXT, 
-#                   age INTEGER, 
-#                   goals TEXT, 
-#                   preferences TEXT)''')
-    
-#     c.execute('''CREATE TABLE IF NOT EXISTS interactions
-#                  (user_id INTEGER,
-#                   course_id TEXT,
-#                   rating REAL,
-#                   timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    
-#     conn.commit()
-#     conn.close()
-
-# init_db()
-
 class SimpleRecommender:
     def __init__(self, courses_df):
         self.courses = courses_df
@@ -90,7 +67,6 @@ class SimpleRecommender:
     
     def collaborative_recommendations(self, user_id, n=5):
         if user_id not in self.user_interactions or len(self.user_interactions[user_id]) == 0:
-        # if user_id not in self.user_interactions or len(self.user_interactions) < 2:
             return pd.DataFrame()
             
         # Simple user-user collaborative filtering
@@ -177,7 +153,6 @@ class SimpleRecommender:
             return None
             
         # Get top k recommended course IDs
-        # recommended = set(recommended_courses['id'].head(k).tolist())
         recommended = set(str(cid) for cid in recommended_courses['id'].head(k).tolist())
         print(f"Debug: Recommended IDs: {recommended}")
         print(f"Debug: User positive IDs: {user_positive}")
@@ -205,7 +180,7 @@ class SimpleRecommender:
         for cid in recommended:
             num_users_rated = sum(1 for u in self.user_interactions.values() if cid in u)
             popularity.append(num_users_rated)
-        # novelty = 1 - (sum(popularity) / (len(self.user_interactions) * k)) if self.user_interactions else 0
+        
         total_users = max(1, len(self.user_interactions))
         novelty = 1 - (sum(popularity) / (total_users * k)) if k > 0 else 0
         
@@ -329,19 +304,7 @@ class SimpleRecommender:
         completed_courses = set(self.user_interactions.get(user_id, {}).keys())
         
         # Generate explanations for each course
-        # explanations = []
-        # for idx, course in combined.iterrows():
-        #     explanation = self._generate_explanation(
-        #         idx, course['id'], query or "learning goals",
-        #         content_weight, collab_weight, completed_courses,
-        #         cb_indices, cf_course_ids
-        #     )
-        #     explanations.append(explanation)
-            
-        # combined = combined.copy()
-        # combined['explanation'] = explanations
-        
-        # return combined
+    
         recommendations = []
         for idx, course in combined.iterrows():
             score = (collab_weight * course.get('rating', 0) + content_weight * cosine_similarity(
