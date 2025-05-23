@@ -1,0 +1,38 @@
+<!-- templates/new_user_form.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>New User Registration</title>
+</head>
+<body>
+    <h1>Personalized Learning Setup</h1>
+    <form method="POST">
+        <div>
+            <label>Name:</label>
+            <input type="text" name="name" required>
+        </div>
+        
+        <div>
+            <label>Age:</label>
+            <input type="number" name="age" min="13" max="100" required>
+        </div>
+        
+        <div>
+            <label>Learning Goals:</label>
+            <textarea name="goals" rows="3" required 
+                      placeholder="Example: Learn Python for data analysis"></textarea>
+        </div>
+        
+        <div>
+            <label>Preferred Format:</label>
+            <select name="preferences">
+                <option value="video">Video Lectures</option>
+                <option value="text">Text-based</option>
+                <option value="interactive">Interactive Coding</option>
+            </select>
+        </div>
+        
+        <button type="submit">Get Personalized Recommendations</button>
+    </form>
+</body>
+</html>

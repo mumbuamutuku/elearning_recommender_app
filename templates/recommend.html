@@ -307,15 +307,15 @@
             <div class="evaluation-section">
                 <div class="evaluation-title">Recommendation Performance</div>
                 {% if evaluation %}
-                <p><strong>Precision:</strong> {{ "%.1f" % evaluation.precision }}%</p>
+                <p><strong>Precision:</strong> {{ "%.1f" % evaluation.precision }} %</p>
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {{ evaluation.precision }}%"></div>
                 </div>
-                <p><strong>Recall:</strong> {{ "%.1f" % evaluation.recall }}%</p>
+                <p><strong>Recall:</strong> {{ "%.1f" % evaluation.recall }} %</p>
                 <div class="progress-container">
-                    <div class="progress-bar" style="width: {{ evaluation.recall }}%"></div>
+                    <div class="progress-bar" style="width: {{ evaluation.recall }}% x 100"></div>
                 </div>
-                <p><strong>Diversity:</strong> {{ "%.1f" % evaluation.diversity }}%</p>
+                <p><strong>Diversity:</strong> {{ "%.1f" % evaluation.diversity }} %</p>
                 <div class="progress-container">
                     <div class="progress-bar" style="width: {{ evaluation.diversity }}%"></div>
                 </div>
@@ -334,6 +334,7 @@
             <form action="/feedback" method="post">
                 <h2>Submit Feedback</h2>
                 <label>Learner ID:</label>
+                
                 <input type="number" name="learner_id" required>
                 
                 <label>Course ID:</label>

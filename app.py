@@ -1,4 +1,5 @@
 from datetime import datetime
+import random
 from services.prerequisite_service import get_prerequisite_id
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
@@ -138,25 +139,48 @@ class SimpleRecommender:
         else:
             return cf_recs if not cf_recs.empty else self.courses.sample(n)
     
+    def generate_synthetic_interactions(self, n_users=100):
+        """Create fake interactions aligned with Coursera IDs"""
+        all_course_ids = courses_df['id'].tolist()
+        
+        for user_id in range(n_users):
+            # Randomly select 3-5 courses
+            num_courses = random.randint(3, 5)
+            selected = random.sample(all_course_ids, num_courses)
+            
+            # Generate ratings (3-5 stars)
+            self.user_interactions[user_id] = {
+                cid: random.uniform(3, 5) for cid in selected
+            }
+
     def evaluate_recommendations(self, user_id, recommended_courses, k=5):
         """
         Evaluate recommendations against user's actual interactions
         """
+        id_mapping = {
+            '1': '1580',  
+            '2': '2738',   
+            '3': '1204',  
+            '4': '431'    
+        }
         if user_id not in self.user_interactions:
             # print(f"Debug: User {user_id} has no interactions")
             return None
             
         # Get user's positively rated courses (rating >= 3)
         user_positive = {cid for cid, rating in self.user_interactions[user_id].items() if rating >= 3}
+        user_positive = {id_mapping[cid] for cid in user_positive 
+                    if cid in id_mapping}
+        
         if not user_positive:
-            # print(f"Debug: User {user_id} has no positive ratings (>=3)")
+            print(f"Debug: User {user_id} has no positive ratings (>=3)")
             return None
             
         # Get top k recommended course IDs
         # recommended = set(recommended_courses['id'].head(k).tolist())
         recommended = set(str(cid) for cid in recommended_courses['id'].head(k).tolist())
-        # print(f"Debug: Recommended IDs: {recommended}")
-        # print(f"Debug: User positive IDs: {user_positive}")
+        print(f"Debug: Recommended IDs: {recommended}")
+        print(f"Debug: User positive IDs: {user_positive}")
 
         # Calculate precision and recall
         relevant_and_recommended = recommended & user_positive
@@ -167,10 +191,6 @@ class SimpleRecommender:
         # Calculate diversity (content dissimilarity between recommendations)
         if len(recommended) > 1:
             rec_indices = self.courses[self.courses['id'].isin(recommended)].index.tolist()
-            # rec_indices = recommended_courses.head(k).index.tolist()
-            # submatrix = self.tfidf_matrix[rec_indices]
-            # pairwise_sim = cosine_similarity(submatrix)
-            # diversity = 1 - pairwise_sim[np.triu_indices(len(pairwise_sim), k=1)].mean()
             if len(rec_indices) > 1:
                 submatrix = self.tfidf_matrix[rec_indices]
                 pairwise_sim = cosine_similarity(submatrix)
@@ -194,12 +214,13 @@ class SimpleRecommender:
         
         # Store metrics
         metrics = {
-            'precision': precision,
-            'recall': recall,
-            'diversity': diversity,
-            'novelty': max(novelty, 0.1),
+            'precision': precision * 100,
+            'recall': recall * 100,
+            'diversity': diversity * 100,
+            'novelty': max(novelty, 0.1) * 100,
         }
         
+        # Store metrics
         for metric, value in metrics.items():
             self.evaluation_metrics[metric].append(value)
             
@@ -266,7 +287,7 @@ class SimpleRecommender:
         if not explanation_parts:
             explanation_parts.append("recommended as a popular choice among learners")
             
-        # Add knowledge graph reference if available
+        # Add knowledge graph 
         # if prerequisites:
         #     top_prerequisites = ', '.join(prerequisites[:3])
         #     explanation_parts.append(
@@ -448,6 +469,7 @@ def user_recommendations():
         # tfidf_matrix = recommender.tfidf_matrix
         # evaluator = UnifiedEvaluator(user_interactions, courses_df, tfidf_matrix)
         # evaluation = evaluator.evaluate_user_performance(user_id=learner_id)
+        print(evaluation)
         
         return render_template('recommend.html',
                            learner=profile,
@@ -498,12 +520,63 @@ def rate_courses():
     return jsonify({'status': 'success', 'message': 'Thank you for your feedback!'})
 
 
-# if __name__ == '__main__':
-#     # Create the database and tables
-#     init_db()
-        
-#     # Add sample data
-#     populate_sample_data()
+# app.py
 
-#     # app.run(debug=True)
+@app.route('/new_user', methods=['GET', 'POST'])
+def new_user():
+    if request.method == 'POST':
+        try:
+            # Extract form data
+            name = request.form.get('name', 'Anonymous')
+            age = int(request.form.get('age', 25))
+            goals = request.form.get('goals', '')
+            preferences = request.form.get('preferences', 'video')  
+            device_type = 'mobile' if 'Mobile' in request.headers.get('User-Agent', '') else 'desktop'
+
+            # Store in database
+            conn = sqlite3.connect('learning.db')
+            c = conn.cursor()
+            c.execute('''INSERT INTO learners 
+                        (name, age, goals, preferences)
+                        VALUES (?, ?, ?, ?)''',
+                     (name, age, goals, preferences))
+            user_id = c.lastrowid
+            
+            # Store initial context
+            # c.execute('''INSERT INTO context 
+            #            (user_id, device_type, first_access)
+            #            VALUES (?, ?, CURRENT_TIMESTAMP)''',
+            #         (user_id, device_type))
+            # conn.commit()
+            # conn.close()
+
+            # Generate recommendations
+            recommendations = recommender.hybrid_recom(
+                user_id=user_id,
+                query=goals,
+                n=10
+            )
+            
+            return render_template('recommend.html',
+                                 user_info={
+                                     'name': name,
+                                     'goals': goals
+                                 },
+                                 recommendations=recommendations.to_dict('records'))
+
+        except Exception as e:
+            print(f"Error processing new user: {str(e)}")
+            return render_template('error.html', message="Could not process registration")
+
+    # GET request - show registration form
+    return render_template('new_user_form.html')
+
+if __name__ == '__main__':
+    # Create the database and tables
+    init_db()
+        
+    # Add sample data
+    populate_sample_data()
+
+    app.run(debug=True)
 #     app.run()
